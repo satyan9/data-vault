@@ -1,0 +1,10 @@
+{
+  "defaultSchema": "ecommerce_dv",
+  "assertionSchema": "dataform_assertions",
+  "warehouse": "bigquery",
+  "defaultDatabase": "moonlit-text-464004-e8",
+  "vars": {
+    "ods_schema": "ecommerce_ods",
+    "dm_schema": "ecommerce_dms"
+  }
+}

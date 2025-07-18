@@ -1,0 +1,30 @@
+
+config {
+  type: "view",
+  schema: dataform.projectConfig.vars.dm_schema,
+  tags: ["dm", "product", "view"]
+}
+
+SELECT
+    hp.product_id AS product_natural_key,
+    sat_pd.product_name,
+    sat_pd.category,
+    SUM(sat_oid.quantity) AS total_units_sold,
+    SUM(sat_oid.quantity * sat_oid.unit_price) AS total_revenue_by_product,
+    CURRENT_TIMESTAMP() AS view_load_timestamp
+FROM
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.link_order_product` lop
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.hub_product` hp ON lop.product_pk = hp.product_pk
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.hub_order_item` hoi ON lop.order_item_pk = hoi.order_item_pk
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_product_details` sat_pd
+    ON hp.product_pk = sat_pd.product_pk
+    AND sat_pd.load_timestamp = (SELECT MAX(load_timestamp) FROM `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_product_details` WHERE product_pk = hp.product_pk)
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_order_item_details` sat_oid
+    ON hoi.order_item_pk = sat_oid.order_item_pk
+    AND sat_oid.load_timestamp = (SELECT MAX(load_timestamp) FROM `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_order_item_details` WHERE order_item_pk = hoi.order_item_pk)
+GROUP BY
+    hp.product_id, sat_pd.product_name, sat_pd.category

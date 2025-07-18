@@ -1,0 +1,45 @@
+
+config {
+  type: "incremental",
+  schema: dataform.projectConfig.defaultSchema,
+  bigquery: {
+    partitionBy: "DATE(load_timestamp)",
+    clusterBy: ["customer_pk"]
+  },
+  tags: ["dv", "satellite", "customer"]
+}
+
+SELECT
+    SHA256(ods.customer_id) AS customer_pk,
+    CURRENT_TIMESTAMP() AS load_timestamp,
+    SHA256(CONCAT(
+        IFNULL(ods.first_name, ''), IFNULL(ods.last_name, ''), IFNULL(ods.email, ''),
+        IFNULL(ods.address, ''), IFNULL(ods.city, ''), IFNULL(ods.state, ''), IFNULL(ods.zip_code, '')
+    )) AS hash_diff,
+    ods.first_name,
+    ods.last_name,
+    ods.email,
+    ods.address,
+    ods.city,
+    ods.state,
+    ods.zip_code,
+    'ODS_CUSTOMER' AS record_source
+FROM
+    `${dataform.projectConfig.defaultDatabase}.${dataform.projectConfig.vars.ods_schema}.ods_customers` ods
+{% if is_incremental() %}
+LEFT JOIN (
+    SELECT
+        customer_pk,
+        hash_diff,
+        ROW_NUMBER() OVER(PARTITION BY customer_pk ORDER BY load_timestamp DESC) AS rn
+    FROM
+        ${self()}
+) AS latest_sat
+ON SHA256(ods.customer_id) = latest_sat.customer_pk AND latest_sat.rn = 1
+WHERE
+    latest_sat.customer_pk IS NULL
+    OR SHA256(CONCAT(
+        IFNULL(ods.first_name, ''), IFNULL(ods.last_name, ''), IFNULL(ods.email, ''),
+        IFNULL(ods.address, ''), IFNULL(ods.city, ''), IFNULL(ods.state, ''), IFNULL(ods.zip_code, '')
+    )) <> latest_sat.hash_diff
+{% endif %}

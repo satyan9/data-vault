@@ -1,0 +1,38 @@
+
+config {
+  type: "incremental",
+  schema: dataform.projectConfig.defaultSchema,
+  bigquery: {
+    partitionBy: "DATE(load_timestamp)",
+    clusterBy: ["order_item_pk"]
+  },
+  tags: ["dv", "satellite", "order_item"]
+}
+
+SELECT
+    SHA256(ods.order_item_id) AS order_item_pk,
+    CURRENT_TIMESTAMP() AS load_timestamp,
+    SHA256(CONCAT(
+        IFNULL(CAST(ods.quantity AS STRING), ''), IFNULL(CAST(ods.unit_price AS STRING), '')
+    )) AS hash_diff,
+    ods.quantity,
+    ods.unit_price,
+    'ODS_ORDER_ITEM' AS record_source
+FROM
+    `${dataform.projectConfig.defaultDatabase}.${dataform.projectConfig.vars.ods_schema}.ods_order_items` ods
+{% if is_incremental() %}
+LEFT JOIN (
+    SELECT
+        order_item_pk,
+        hash_diff,
+        ROW_NUMBER() OVER(PARTITION BY order_item_pk ORDER BY load_timestamp DESC) AS rn
+    FROM
+        ${self()}
+) AS latest_sat
+ON SHA256(ods.order_item_id) = latest_sat.order_item_pk AND latest_sat.rn = 1
+WHERE
+    latest_sat.order_item_pk IS NULL
+    OR SHA256(CONCAT(
+        IFNULL(CAST(ods.quantity AS STRING), ''), IFNULL(CAST(ods.unit_price AS STRING), '')
+    )) <> latest_sat.hash_diff
+{% endif %}

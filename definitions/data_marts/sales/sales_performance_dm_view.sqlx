@@ -1,0 +1,42 @@
+
+config {
+  type: "view",
+  schema: dataform.projectConfig.vars.dm_schema,
+  tags: ["dm", "sales", "view"]
+}
+
+SELECT
+    CAST(FORMAT_DATE('%Y%m%d', sat_oh.order_date) AS INT64) AS order_date_key,
+    sat_cd.city AS customer_city,
+    sat_pd.category AS product_category,
+    sat_oid.quantity AS quantity_sold,
+    (sat_oid.quantity * sat_oid.unit_price) AS total_item_amount,
+    CURRENT_TIMESTAMP() AS view_load_timestamp
+FROM
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.link_order_product` lop
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.hub_order` ho ON lop.order_pk = ho.order_pk
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.hub_product` hp ON lop.product_pk = hp.product_pk
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.hub_order_item` hoi ON lop.order_item_pk = hoi.order_item_pk
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_order_header` sat_oh
+    ON ho.order_pk = sat_oh.order_pk
+    AND sat_oh.load_timestamp = (SELECT MAX(load_timestamp) FROM `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_order_header` WHERE order_pk = ho.order_pk)
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.link_customer_order` lco ON ho.order_pk = lco.order_pk
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.hub_customer` hc ON lco.customer_pk = hc.customer_pk
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_customer_details` sat_cd
+    ON hc.customer_pk = sat_cd.customer_pk
+    AND sat_cd.load_timestamp = (SELECT MAX(load_timestamp) FROM `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_customer_details` WHERE customer_pk = hc.customer_pk)
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_product_details` sat_pd
+    ON hp.product_pk = sat_pd.product_pk
+    AND sat_pd.load_timestamp = (SELECT MAX(load_timestamp) FROM `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_product_details` WHERE product_pk = hp.product_pk)
+JOIN
+    `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_order_item_details` sat_oid
+    ON hoi.order_item_pk = sat_oid.order_item_pk
+    AND sat_oid.load_timestamp = (SELECT MAX(load_timestamp) FROM `${dataform.projectConfig.defaultDatabase}.ecommerce_dv.sat_order_item_details` WHERE order_item_pk = hoi.order_item_pk)

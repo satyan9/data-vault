@@ -1,0 +1,22 @@
+
+config {
+  type: "incremental",
+  schema: dataform.projectConfig.defaultSchema,
+  bigquery: {
+    clusterBy: ["customer_pk", "order_pk"]
+  },
+  tags: ["dv", "link", "customer_order"]
+}
+
+SELECT
+    SHA256(CONCAT(SHA256(o.customer_id), SHA256(o.order_id))) AS customer_order_pk,
+    SHA256(o.customer_id) AS customer_pk,
+    SHA256(o.order_id) AS order_pk,
+    CURRENT_TIMESTAMP() AS load_timestamp,
+    'ODS_ORDER' AS record_source
+FROM
+    `${dataform.projectConfig.defaultDatabase}.${dataform.projectConfig.vars.ods_schema}.ods_orders` o
+WHERE TRUE
+{% if is_incremental() %}
+    AND SHA256(CONCAT(SHA256(o.customer_id), SHA256(o.order_id))) NOT IN (SELECT customer_order_pk FROM ${self()})
+{% endif %}

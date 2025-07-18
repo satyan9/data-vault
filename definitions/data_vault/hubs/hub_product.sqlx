@@ -1,0 +1,21 @@
+
+config {
+  type: "incremental",
+  schema: dataform.projectConfig.defaultSchema,
+  bigquery: {
+    clusterBy: ["product_id"]
+  },
+  tags: ["dv", "hub", "product"]
+}
+
+SELECT
+    SHA256(product_id) AS product_pk,
+    product_id,
+    CURRENT_TIMESTAMP() AS load_timestamp,
+    'ODS_PRODUCT' AS record_source
+FROM
+    `${dataform.projectConfig.defaultDatabase}.${dataform.projectConfig.vars.ods_schema}.ods_products`
+WHERE TRUE
+{% if is_incremental() %}
+    AND SHA256(product_id) NOT IN (SELECT product_pk FROM ${self()})
+{% endif %}

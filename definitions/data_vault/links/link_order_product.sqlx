@@ -1,0 +1,23 @@
+
+config {
+  type: "incremental",
+  schema: dataform.projectConfig.defaultSchema,
+  bigquery: {
+    clusterBy: ["order_pk", "product_pk", "order_item_pk"]
+  },
+  tags: ["dv", "link", "order_product"]
+}
+
+SELECT
+    SHA256(CONCAT(SHA256(oi.order_id), SHA256(oi.product_id), SHA256(oi.order_item_id))) AS order_product_pk,
+    SHA256(oi.order_id) AS order_pk,
+    SHA256(oi.product_id) AS product_pk,
+    SHA256(oi.order_item_id) AS order_item_pk,
+    CURRENT_TIMESTAMP() AS load_timestamp,
+    'ODS_ORDER_ITEM' AS record_source
+FROM
+    `${dataform.projectConfig.defaultDatabase}.${dataform.projectConfig.vars.ods_schema}.ods_order_items` oi
+WHERE TRUE
+{% if is_incremental() %}
+    AND SHA256(CONCAT(SHA256(oi.order_id), SHA256(oi.product_id), SHA256(oi.order_item_id))) NOT IN (SELECT order_product_pk FROM ${self()})
+{% endif %}

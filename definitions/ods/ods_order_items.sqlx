@@ -1,0 +1,17 @@
+
+config {
+  type: "view",
+  schema: dataform.projectConfig.vars.ods_schema,
+  tags: ["ods", "order_item"]
+}
+
+SELECT
+    order_item_id,
+    order_id,
+    product_id,
+    quantity,
+    unit_price,
+    created_at,
+    updated_at
+FROM
+    `moonlit-text-464004-e8.ecommerce_ods.ods_order_items`

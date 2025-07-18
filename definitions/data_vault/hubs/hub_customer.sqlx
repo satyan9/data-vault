@@ -1,0 +1,22 @@
+
+config {
+  type: "incremental",
+  schema: dataform.projectConfig.defaultSchema,
+  bigquery: {
+    clusterBy: ["customer_id"],
+    partitionBy: "DATE(load_timestamp)" // Optional for Hubs, if you expect many loads over time
+  },
+  tags: ["dv", "hub", "customer"]
+}
+
+SELECT
+    SHA256(customer_id) AS customer_pk,
+    customer_id,
+    CURRENT_TIMESTAMP() AS load_timestamp,
+    'ODS_CUSTOMER' AS record_source
+FROM
+    `${dataform.projectConfig.defaultDatabase}.${dataform.projectConfig.vars.ods_schema}.ods_customers`
+WHERE TRUE
+{% if is_incremental() %}
+    AND SHA256(customer_id) NOT IN (SELECT customer_pk FROM ${self()})
+{% endif %}

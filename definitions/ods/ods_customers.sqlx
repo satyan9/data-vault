@@ -1,0 +1,22 @@
+
+config {
+  type: "view", -- Or "table" if Dataform directly manages its creation/load
+  schema: dataform.projectConfig.vars.ods_schema,
+  tags: ["ods", "customer"]
+}
+
+-- This view assumes ods_customers is externally loaded into the ods_schema.
+-- If Dataform were to create/load it, the SELECT would be from the raw source.
+SELECT
+    customer_id,
+    first_name,
+    last_name,
+    email,
+    address,
+    city,
+    state,
+    zip_code,
+    created_at,
+    updated_at
+FROM
+    `moonlit-text-464004-e8.ecommerce_ods.ods_customers`
